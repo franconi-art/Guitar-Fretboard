@@ -102,3 +102,4 @@ fig, (ax1, ax2) = plt.subplots(1, 2, figsize=(12, 4.5))
 draw_fretboard(ax1, fretboard_left, notes_left, root_left, tuning_left, start_fret_left, label_mode_left, title=scale_left)
 draw_fretboard(ax2, fretboard_right, notes_right, root_right, tuning_right, start_fret_right, label_mode_right, title=scale_right)
 st.pyplot(fig)
+update: Vergleichsansicht
