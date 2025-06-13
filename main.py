@@ -3,14 +3,11 @@ import pandas as pd
 import matplotlib.pyplot as plt
 from io import BytesIO
 
-# --- Noten & Skalen ---
 chromatic = ['C', 'C#', 'D', 'D#', 'E', 'F',
              'F#', 'G', 'G#', 'A', 'A#', 'B']
 
-# Standard-Stimmung
 standard_tuning = ['E', 'B', 'G', 'D', 'A', 'E']
 
-# Skalen
 scales = {
     "C Major": ['C', 'D', 'E', 'F', 'G', 'A', 'B'],
     "A Minor": ['A', 'B', 'C', 'D', 'E', 'F', 'G'],
@@ -20,7 +17,6 @@ scales = {
     "Pentatonic A Minor": ['A', 'C', 'D', 'E', 'G']
 }
 
-# Stimmungen
 tunings = {
     "Standard (E A D G B E)": ['E', 'B', 'G', 'D', 'A', 'E'],
     "Drop D (D A D G B E)": ['E', 'B', 'G', 'D', 'A', 'D'],
@@ -29,7 +25,6 @@ tunings = {
     "DADGAD": ['D', 'A', 'G', 'D', 'A', 'D']
 }
 
-# Beispiel-Akkorde
 chords = {
     "C Major": ['C', 'E', 'G'],
     "A Minor": ['A', 'C', 'E'],
@@ -38,7 +33,6 @@ chords = {
     "D Major": ['D', 'F#', 'A']
 }
 
-# --- Funktionen ---
 def note_at(string_note, fret):
     idx = chromatic.index(string_note)
     return chromatic[(idx + fret) % 12]
@@ -52,40 +46,35 @@ def generate_fretboard(tuning, frets=12):
 
 def draw_fretboard(fretboard, selected_notes, frets, root_note, tuning):
     fig, ax = plt.subplots(figsize=(frets * 0.6, 3.5))
-    ax.set_xlim(-0.5, frets + 0.5)
+    ax.set_xlim(-0.5, frets)
     ax.set_ylim(0.5, 6.5)
     ax.axis('off')
     ax.set_facecolor("#f1e2c6")
 
-    # Saiten
     for string in range(1, 7):
-        ax.hlines(string, -0.5, frets + 0.5, color="black", linewidth=1.5)
+        ax.hlines(string, -0.5, frets - 0.5, color="black", linewidth=1.5)
 
-    # Bünde
     for fret in range(frets + 1):
-        ax.vlines(fret, 0.5, 6.5, color="grey", linestyle="--" if fret > 0 else "-", linewidth=1)
+        ax.vlines(fret - 0.5, 0.5, 6.5, color="grey", linestyle="--" if fret > 0 else "-", linewidth=1)
 
-    # Positionsmarker
     for marker in [3, 5, 7, 9, 12, 15, 17]:
         if marker <= frets:
-            ax.text(marker, 0.3, "•", fontsize=14, ha="center", va="center", color="gray")
+            ax.text(marker - 0.5, 0.3, "•", fontsize=14, ha="center", va="center", color="gray")
 
-    # Notenpunkte
     for string_idx, string in enumerate(fretboard):
         for fret_idx, note in enumerate(string):
             if note in selected_notes:
                 y = string_idx + 1
+                x = fret_idx - 0.5 + 0.5
                 color = "darkred" if note == root_note else "saddlebrown"
-                ax.plot(fret_idx, y, 'o', color=color, markersize=14)
-                ax.text(fret_idx, y, note, color="white", ha="center", va="center", fontsize=9, weight="bold")
+                ax.plot(x, y, 'o', color=color, markersize=14)
+                ax.text(x, y, note, color="white", ha="center", va="center", fontsize=9, weight="bold")
 
-    # Saitennamen links
     for i, note in enumerate(tuning[::-1]):
         ax.text(-1.2, i + 1, note, ha="right", va="center", fontsize=10, fontweight="bold")
 
     return fig
 
-# --- UI ---
 st.title("🎸 Guitar Fretboard Visualizer")
 
 frets = st.slider("Number of Frets", min_value=12, max_value=24, value=12)
@@ -93,7 +82,6 @@ selected_tuning_name = st.selectbox("Tuning", list(tunings.keys()))
 selected_tuning = tunings[selected_tuning_name]
 fretboard_data = generate_fretboard(selected_tuning, frets)
 
-# Modusauswahl
 mode = st.radio("Display Mode", ["Scale", "Chord", "Custom Notes"])
 
 if mode == "Scale":
@@ -110,12 +98,10 @@ elif mode == "Custom Notes":
     selected_notes = st.multiselect("Select Notes", chromatic)
     root_note = selected_notes[0] if selected_notes else None
 
-# Visualisierung
 if selected_notes:
     fig = draw_fretboard(fretboard_data, selected_notes, frets, root_note, selected_tuning)
     st.pyplot(fig)
 
-    # Export als PNG
     buffer = BytesIO()
     fig.savefig(buffer, format="png", dpi=300, bbox_inches="tight")
     st.download_button(
