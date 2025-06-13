@@ -1,114 +1,104 @@
 import streamlit as st
-import pandas as pd
 import matplotlib.pyplot as plt
 from io import BytesIO
 
 chromatic = ['C', 'C#', 'D', 'D#', 'E', 'F',
              'F#', 'G', 'G#', 'A', 'A#', 'B']
 
-standard_tuning = ['E', 'B', 'G', 'D', 'A', 'E']
+interval_map = {
+    0: "1", 1: "b2", 2: "2", 3: "b3", 4: "3",
+    5: "4", 6: "b5", 7: "5", 8: "#5", 9: "6",
+    10: "b7", 11: "7"
+}
 
 scales = {
     "C Major": ['C', 'D', 'E', 'F', 'G', 'A', 'B'],
     "A Minor": ['A', 'B', 'C', 'D', 'E', 'F', 'G'],
     "G Major": ['G', 'A', 'B', 'C', 'D', 'E', 'F#'],
-    "E Minor": ['E', 'F#', 'G', 'A', 'B', 'C', 'D'],
-    "Pentatonic C Major": ['C', 'D', 'E', 'G', 'A'],
-    "Pentatonic A Minor": ['A', 'C', 'D', 'E', 'G']
+    "E Minor": ['E', 'F#', 'G', 'A', 'B', 'C', 'D']
 }
 
 tunings = {
-    "Standard (E A D G B E)": ['E', 'B', 'G', 'D', 'A', 'E'],
-    "Drop D (D A D G B E)": ['E', 'B', 'G', 'D', 'A', 'D'],
-    "Open D (D A D F# A D)": ['D', 'A', 'F#', 'D', 'A', 'D'],
-    "Open G (D G D G B D)": ['D', 'B', 'G', 'D', 'G', 'D'],
-    "DADGAD": ['D', 'A', 'G', 'D', 'A', 'D']
+    "Standard (E A D G B E)": ['E', 'B', 'G', 'D', 'A', 'E']
 }
 
-chords = {
-    "C Major": ['C', 'E', 'G'],
-    "A Minor": ['A', 'C', 'E'],
-    "G Major": ['G', 'B', 'D'],
-    "E Minor": ['E', 'G', 'B'],
-    "D Major": ['D', 'F#', 'A']
-}
-
-def note_at(string_note, fret):
-    idx = chromatic.index(string_note)
+def note_at(note, fret):
+    idx = chromatic.index(note)
     return chromatic[(idx + fret) % 12]
 
-def generate_fretboard(tuning, frets=12):
-    data = []
-    for string in tuning[::-1]:
-        row = [note_at(string, fret) for fret in range(frets + 1)]
-        data.append(row)
-    return data
+def interval_label(root, note):
+    root_idx = chromatic.index(root)
+    note_idx = chromatic.index(note)
+    diff = (note_idx - root_idx) % 12
+    return interval_map.get(diff, "")
 
-def draw_fretboard(fretboard, selected_notes, frets, root_note, tuning):
-    fig, ax = plt.subplots(figsize=(frets * 0.6, 3.5))
-    ax.set_xlim(-0.5, frets)
+def generate_fretboard(tuning, start_fret, end_fret):
+    return [[note_at(note, fret) for fret in range(start_fret, end_fret + 1)] for note in tuning[::-1]]
+
+def draw_fretboard(ax, fretboard, selected_notes, root_note, tuning, start_fret, label_mode, title=""):
+    frets = len(fretboard[0])
+    ax.set_xlim(-0.5, frets - 0.5)
     ax.set_ylim(0.5, 6.5)
     ax.axis('off')
     ax.set_facecolor("#f1e2c6")
 
-    for string in range(1, 7):
-        ax.hlines(string, -0.5, frets - 0.5, color="black", linewidth=1.5)
+    for s in range(6):
+        ax.hlines(s + 1, -0.5, frets - 0.5, color="black", linewidth=1.5)
+    for f in range(frets + 1):
+        ax.vlines(f - 0.5, 0.5, 6.5, color="grey", linestyle="--", linewidth=1)
 
-    for fret in range(frets + 1):
-        ax.vlines(fret - 0.5, 0.5, 6.5, color="grey", linestyle="--" if fret > 0 else "-", linewidth=1)
+    for m in [3, 5, 7, 9, 12]:
+        x = m - start_fret
+        if 0 <= x < frets:
+            ax.text(x, 0.3, "•", fontsize=14, ha="center", va="center", color="gray")
 
-    for marker in [3, 5, 7, 9, 12, 15, 17]:
-        if marker <= frets:
-            ax.text(marker - 0.5, 0.3, "•", fontsize=14, ha="center", va="center", color="gray")
-
-    for string_idx, string in enumerate(fretboard):
-        for fret_idx, note in enumerate(string):
+    for s_idx, string in enumerate(fretboard):
+        for f_idx, note in enumerate(string):
             if note in selected_notes:
-                y = string_idx + 1
-                x = fret_idx - 0.5 + 0.5
+                x, y = f_idx, s_idx + 1
+                if label_mode == "Note":
+                    label = note
+                elif label_mode == "Interval":
+                    label = interval_label(root_note, note)
+                else:
+                    label = ""
                 color = "darkred" if note == root_note else "saddlebrown"
                 ax.plot(x, y, 'o', color=color, markersize=14)
-                ax.text(x, y, note, color="white", ha="center", va="center", fontsize=9, weight="bold")
+                ax.text(x, y, label, color="white", ha="center", va="center", fontsize=9, weight="bold")
 
     for i, note in enumerate(tuning[::-1]):
         ax.text(-1.2, i + 1, note, ha="right", va="center", fontsize=10, fontweight="bold")
 
-    return fig
+    ax.set_title(title, fontsize=14, fontweight="bold", pad=10)
 
-st.title("🎸 Guitar Fretboard Visualizer")
+# Streamlit UI
+st.title("🎸 Fretboard Comparison View")
 
-frets = st.slider("Number of Frets", min_value=12, max_value=24, value=12)
-selected_tuning_name = st.selectbox("Tuning", list(tunings.keys()))
-selected_tuning = tunings[selected_tuning_name]
-fretboard_data = generate_fretboard(selected_tuning, frets)
+col1, col2 = st.columns(2)
 
-mode = st.radio("Display Mode", ["Scale", "Chord", "Custom Notes"])
+with col1:
+    st.subheader("Left Fretboard")
+    tuning_left = tunings["Standard (E A D G B E)"]
+    scale_left = st.selectbox("Scale (Left)", list(scales.keys()), key="scale_left")
+    start_fret_left = st.slider("Start Fret (Left)", 0, 12, 0, key="start_left")
+    end_fret_left = st.slider("End Fret (Left)", start_fret_left + 1, 24, start_fret_left + 11, key="end_left")
+    label_mode_left = st.radio("Labels (Left)", ["Note", "Interval", "None"], key="label_left")
+    notes_left = scales[scale_left]
+    root_left = notes_left[0]
+    fretboard_left = generate_fretboard(tuning_left, start_fret_left, end_fret_left)
 
-if mode == "Scale":
-    selected_scale = st.selectbox("Select a Scale", list(scales.keys()))
-    selected_notes = scales[selected_scale]
-    root_note = selected_notes[0]
+with col2:
+    st.subheader("Right Fretboard")
+    tuning_right = tunings["Standard (E A D G B E)"]
+    scale_right = st.selectbox("Scale (Right)", list(scales.keys()), index=1, key="scale_right")
+    start_fret_right = st.slider("Start Fret (Right)", 0, 12, 0, key="start_right")
+    end_fret_right = st.slider("End Fret (Right)", start_fret_right + 1, 24, start_fret_right + 11, key="end_right")
+    label_mode_right = st.radio("Labels (Right)", ["Note", "Interval", "None"], key="label_right")
+    notes_right = scales[scale_right]
+    root_right = notes_right[0]
+    fretboard_right = generate_fretboard(tuning_right, start_fret_right, end_fret_right)
 
-elif mode == "Chord":
-    selected_chord = st.selectbox("Select a Chord", list(chords.keys()))
-    selected_notes = chords[selected_chord]
-    root_note = selected_notes[0]
-
-elif mode == "Custom Notes":
-    selected_notes = st.multiselect("Select Notes", chromatic)
-    root_note = selected_notes[0] if selected_notes else None
-
-if selected_notes:
-    fig = draw_fretboard(fretboard_data, selected_notes, frets, root_note, selected_tuning)
-    st.pyplot(fig)
-
-    buffer = BytesIO()
-    fig.savefig(buffer, format="png", dpi=300, bbox_inches="tight")
-    st.download_button(
-        label="📥 Download Fretboard as PNG",
-        data=buffer.getvalue(),
-        file_name="fretboard.png",
-        mime="image/png"
-    )
-else:
-    st.info("Please select at least one note to display.")
+fig, (ax1, ax2) = plt.subplots(1, 2, figsize=(12, 4.5))
+draw_fretboard(ax1, fretboard_left, notes_left, root_left, tuning_left, start_fret_left, label_mode_left, title=scale_left)
+draw_fretboard(ax2, fretboard_right, notes_right, root_right, tuning_right, start_fret_right, label_mode_right, title=scale_right)
+st.pyplot(fig)
